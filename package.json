@@ -1,0 +1,36 @@
+{
+  "name": "devtap",
+  "version": "0.2.0",
+  "description": "See every request, response, WebSocket message and log line of your local server in a readable live UI.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thalhath2234/devtap.git"
+  },
+  "homepage": "https://github.com/thalhath2234/devtap#readme",
+  "keywords": [
+    "proxy",
+    "http",
+    "debugging",
+    "inspector",
+    "logs",
+    "websocket",
+    "devtools",
+    "cli"
+  ],
+  "bin": {
+    "devtap": "devtap.js"
+  },
+  "files": [
+    "devtap.js",
+    "discover.js",
+    "ui.html",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "demo": "node devtap.js 3000 -- node demo/server.js"
+  },
+  "license": "MIT"
+}

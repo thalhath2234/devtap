@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>devtap</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2358a6ff'/%3E%3Cpath d='M8 11h9M8 16h16M8 21h12' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #0b0f14; --panel: #0f141b; --panel-2: #141a23; --raised: #19212c;
+  --border: #212a36; --border-2: #2b3644;
+  --text: #dce3ec; --muted: #8a97a8; --faint: #5a6677;
+  --accent: #58a6ff; --sel: #15253b; --hover: #121a24;
+  --green: #3fb950; --blue: #58a6ff; --amber: #d29922; --red: #f85149; --purple: #bc8cff; --teal: #39c5cf; --grey: #8b949e;
+  --j-key: #79c0ff; --j-str: #a5d6a7; --j-num: #f2b880; --j-bool: #d2a8ff; --j-null: #8b949e; --j-punct: #6e7a8a;
+  --a30:#6e7681; --a31:#ff7b72; --a32:#56d364; --a33:#e3b341; --a34:#79c0ff; --a35:#d2a8ff; --a36:#56d4dd; --a37:#c9d1d9;
+  --a90:#8b949e; --a91:#ffa198; --a92:#7ee787; --a93:#f2cc60; --a94:#a5d6ff; --a95:#e2c5ff; --a96:#87f0f7; --a97:#f0f6fc;
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --raised: #eef1f5;
+  --border: #e1e6ec; --border-2: #d0d7de;
+  --text: #1f2328; --muted: #59636e; --faint: #8c959f;
+  --accent: #0969da; --sel: #ddeafc; --hover: #f3f6f9;
+  --green: #1a7f37; --blue: #0969da; --amber: #9a6700; --red: #cf222e; --purple: #8250df; --teal: #1b7c83; --grey: #6e7781;
+  --j-key: #0550ae; --j-str: #116329; --j-num: #953800; --j-bool: #8250df; --j-null: #6e7781; --j-punct: #8c959f;
+  --a30:#57606a; --a31:#cf222e; --a32:#1a7f37; --a33:#9a6700; --a34:#0969da; --a35:#8250df; --a36:#1b7c83; --a37:#57606a;
+  --a90:#6e7781; --a91:#a40e26; --a92:#116329; --a93:#7d4e00; --a94:#0550ae; --a95:#6639ba; --a96:#136061; --a97:#24292f;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); overflow: hidden; display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; }
+.mono { font-family: var(--mono); }
+
+/* ---------- top bar ---------- */
+header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 14px; letter-spacing: .2px; }
+.brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.brand .dot.live { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent); }
+.route { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; white-space: nowrap; }
+.route b { color: var(--text); font-weight: 500; }
+.search { flex: 1; min-width: 200px; position: relative; }
+.search input { width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px 6px 30px; font: 12.5px var(--mono); outline: none; }
+.search input:focus { border-color: var(--accent); }
+.search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+.chips { display: flex; gap: 4px; }
+.chip { border: 1px solid var(--border); background: transparent; border-radius: 999px; padding: 3px 10px; cursor: pointer; color: var(--muted); font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+.chip .n { color: var(--faint); font-variant-numeric: tabular-nums; }
+.chip.on { background: var(--raised); color: var(--text); border-color: var(--border-2); }
+.chip.on .n { color: var(--muted); }
+.chip.err.on { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.btn { border: 1px solid var(--border); background: var(--panel-2); border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--text); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--border-2); background: var(--raised); }
+.btn.primary { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
+.btn .badge { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; }
+.icon-btn { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.icon-btn:hover { background: var(--raised); color: var(--text); }
+
+/* ---------- layout ---------- */
+main { display: flex; flex: 1; min-height: 0; }
+#listWrap { flex: 1; min-width: 320px; display: flex; flex-direction: column; background: var(--panel); }
+#gutter { width: 5px; cursor: col-resize; background: var(--border); flex: none; }
+#gutter:hover, #gutter.drag { background: var(--accent); }
+#detail { width: var(--detail-w, 48%); min-width: 360px; background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+body.no-sel #detail, body.no-sel #gutter { display: none; }
+
+.cols { display: grid; grid-template-columns: 92px 58px 48px minmax(0, 1fr) 52px 64px 84px; gap: 10px; align-items: center; padding: 0 12px; }
+.thead { height: 28px; border-bottom: 1px solid var(--border); color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; flex: none; }
+.thead .r, .row .r { text-align: right; }
+#list { overflow-y: auto; flex: 1; font-variant-numeric: tabular-nums; }
+.row { height: 30px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); cursor: pointer; white-space: nowrap; }
+.row:hover { background: var(--hover); }
+.row.sel { background: var(--sel); box-shadow: inset 2px 0 0 var(--accent); }
+.row > * { overflow: hidden; text-overflow: ellipsis; }
+.time { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+.method { font: 600 11px var(--mono); letter-spacing: .3px; }
+.m-GET { color: var(--blue); } .m-POST { color: var(--green); } .m-PUT { color: var(--amber); } .m-PATCH { color: var(--purple); }
+.m-DELETE { color: var(--red); } .m-OPTIONS, .m-HEAD { color: var(--grey); } .m-WS { color: var(--teal); }
+.status { font: 600 11.5px var(--mono); }
+.s2 { color: var(--green); } .s3 { color: var(--blue); } .s4 { color: var(--amber); } .s5, .serr { color: var(--red); } .s1 { color: var(--teal); }
+.path { font-family: var(--mono); font-size: 12.5px; }
+.path .qs { color: var(--faint); }
+.tag { display: inline-block; font: 10.5px var(--sans); padding: 0 6px; border-radius: 4px; margin-left: 6px; vertical-align: 1px; background: var(--raised); color: var(--muted); }
+.tag.red { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.tag.teal { color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, transparent); }
+.type, .size { color: var(--muted); font-size: 12px; }
+.dur { position: relative; font-size: 12px; color: var(--muted); }
+.dur.slow { color: var(--amber); } .dur.vslow { color: var(--red); }
+.spin { display: inline-block; width: 10px; height: 10px; border: 1.5px solid var(--faint); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.row.log { height: auto; min-height: 24px; cursor: pointer; padding-top: 3px; padding-bottom: 3px; white-space: normal; }
+.row.log .src { grid-column: 2 / 3; font: 10.5px var(--mono); color: var(--faint); text-align: left; }
+.row.log .src.stderr { color: var(--red); }
+.row.log .src.system { color: var(--purple); }
+.row.log .text { grid-column: 3 / -1; font: 12px/1.5 var(--mono); color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
+.row.log.lvl-error { background: color-mix(in srgb, var(--red) 6%, transparent); }
+.row.log.lvl-error .text { color: var(--text); }
+.row.log.lvl-warn { background: color-mix(in srgb, var(--amber) 5%, transparent); }
+.row.log .lv { font-weight: 600; margin-right: 6px; }
+.row.log .kv { color: var(--faint); }
+
+.empty { padding: 60px 24px; text-align: center; color: var(--muted); }
+.empty h2 { color: var(--text); font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.empty code { font-family: var(--mono); background: var(--panel-2); border: 1px solid var(--border); padding: 2px 8px; border-radius: 6px; color: var(--text); }
+.empty pre { display: inline-block; text-align: left; font: 12px var(--mono); background: var(--panel-2); border: 1px solid var(--border); padding: 10px 14px; border-radius: 8px; color: var(--text); margin-top: 14px; }
+.foot { flex: none; height: 26px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; padding: 0 12px; font-size: 11.5px; color: var(--faint); }
+.foot .tail { margin-left: auto; cursor: pointer; }
+.foot .tail.on { color: var(--accent); }
+
+/* ---------- detail ---------- */
+.d-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); flex: none; }
+.d-title { display: flex; align-items: center; gap: 10px; }
+.d-title .method { font-size: 13px; }
+.pill { font: 600 12px var(--mono); padding: 1px 8px; border-radius: 999px; background: var(--raised); }
+.pill.s2 { background: color-mix(in srgb, var(--green) 15%, transparent); }
+.pill.s3 { background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.pill.s4 { background: color-mix(in srgb, var(--amber) 15%, transparent); }
+.pill.s5, .pill.serr { background: color-mix(in srgb, var(--red) 15%, transparent); }
+.pill.s1 { background: color-mix(in srgb, var(--teal) 15%, transparent); }
+.d-title .grow { flex: 1; }
+.d-url { font: 12.5px/1.5 var(--mono); margin-top: 8px; word-break: break-all; color: var(--text); }
+.d-url .origin { color: var(--faint); }
+.d-err { margin-top: 8px; color: var(--red); font-size: 12.5px; background: color-mix(in srgb, var(--red) 10%, transparent); border-radius: 6px; padding: 6px 10px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.facts b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.timing { margin-top: 10px; height: 6px; border-radius: 3px; background: var(--raised); display: flex; overflow: hidden; }
+.timing .wait { background: color-mix(in srgb, var(--amber) 70%, transparent); }
+.timing .dl { background: var(--accent); }
+.d-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border); flex: none; }
+.tab { border: 0; background: transparent; padding: 8px 10px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 12.5px; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.tab .n { color: var(--faint); margin-left: 4px; }
+.d-body { overflow-y: auto; flex: 1; padding: 4px 16px 40px; }
+.section { margin-top: 14px; }
+.section > .sh { display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--faint); margin-bottom: 6px; cursor: pointer; user-select: none; }
+.section > .sh .n { text-transform: none; letter-spacing: 0; }
+.section > .sh .sp { flex: 1; }
+.section > .sh .caret { transition: transform .12s; }
+.section.closed > .sh .caret { transform: rotate(-90deg); }
+.section.closed > .sb { display: none; }
+.kv-table { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font: 12px/1.5 var(--mono); }
+.kv-table > div { padding: 4px 10px; border-bottom: 1px solid var(--border); word-break: break-all; }
+.kv-table > div:nth-last-child(-n+2) { border-bottom: 0; }
+.kv-table .k { color: var(--muted); background: var(--panel-2); border-right: 1px solid var(--border); word-break: normal; white-space: nowrap; }
+.kv-table .v .sub { color: var(--faint); }
+.bodybar { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 2px 9px; cursor: pointer; color: var(--muted); font-size: 11.5px; }
+.seg button.on { background: var(--raised); color: var(--text); }
+.bodybar .sp { flex: 1; }
+.code { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font: 12.5px/1.55 var(--mono); white-space: pre-wrap; word-break: break-word; overflow-x: auto; margin: 0; max-height: none; }
+.note { font-size: 12px; color: var(--amber); margin: 6px 0; }
+.muted { color: var(--muted); }
+.none { color: var(--faint); font-style: italic; font-size: 12px; padding: 4px 0; }
+iframe.preview { width: 100%; height: 420px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+img.preview { max-width: 100%; border: 1px solid var(--border); border-radius: 8px; background: repeating-conic-gradient(var(--raised) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+
+/* JSON tree */
+.jt { font: 12.5px/1.6 var(--mono); }
+.jt .line, .jt .jn { padding-left: 16px; position: relative; }
+.jt .jc { margin-left: 4px; border-left: 1px solid var(--border); }
+.jt .tg { position: absolute; left: 0; width: 14px; color: var(--faint); cursor: pointer; user-select: none; text-align: center; }
+.jt .tg::before { content: "▾"; }
+.jt .jn.closed > .tg::before { content: "▸"; }
+.jt .jn.closed > .jc { display: none; }
+.jt .sum { display: none; color: var(--faint); cursor: pointer; font-style: italic; }
+.jt .jn.closed > .sum { display: inline; }
+.jt .k { color: var(--j-key); } .jt .s { color: var(--j-str); word-break: break-word; } .jt .num { color: var(--j-num); }
+.jt .b { color: var(--j-bool); } .jt .nl { color: var(--j-null); } .jt .p { color: var(--j-punct); }
+
+/* WS messages */
+.msgs { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.msg { border-bottom: 1px solid var(--border); }
+.msg:last-child { border-bottom: 0; }
+.msg-h { display: grid; grid-template-columns: 18px 72px 76px 56px minmax(0, 1fr); gap: 8px; padding: 5px 10px; cursor: pointer; font: 12px var(--mono); align-items: center; }
+.msg-h:hover { background: var(--hover); }
+.msg-h .arrow.out { color: var(--green); } .msg-h .arrow.in { color: var(--blue); }
+.msg-h .prev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.msg-h .ty { color: var(--faint); }
+.msg.open .msg-h { background: var(--panel-2); }
+.msg-b { display: none; padding: 8px 12px 12px; border-top: 1px dashed var(--border); }
+.msg.open .msg-b { display: block; }
+.msg.ctl .prev { color: var(--faint); }
+.logline { font: 12px/1.55 var(--mono); padding: 3px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); white-space: pre-wrap; word-break: break-word; }
+.logline .time { margin-right: 10px; }
+
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--raised); border: 1px solid var(--border-2); padding: 6px 14px; border-radius: 8px; opacity: 0; transition: .18s; pointer-events: none; font-size: 12.5px; }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.back { display: none; }
+
+@media (max-width: 900px) {
+  #detail { position: fixed; inset: 0; width: 100%; min-width: 0; z-index: 5; }
+  #gutter { display: none; }
+  .back { display: inline-flex; }
+  .cols { grid-template-columns: 0 50px 40px minmax(0, 1fr) 0 0 60px; gap: 6px; }
+  .cols > .time, .cols > .type, .cols > .size, .thead .h-time, .thead .h-type, .thead .h-size { visibility: hidden; }
+  .row.log .src { grid-column: 1 / 3; visibility: visible; }
+  .route { display: none; }
+}
+</style>
+</head>
+<body class="no-sel">
+<header>
+  <div class="brand"><span class="dot" id="live"></span>devtap</div>
+  <div class="route" id="route">connecting…</div>
+  <div class="search">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="m11 11 3.5 3.5"/></svg>
+    <input id="q" placeholder="Filter…  try: users  status:4xx  method:post  -health  (press /)" spellcheck="false" autocomplete="off">
+  </div>
+  <div class="chips">
+    <button class="chip on" data-kind="http">HTTP <span class="n" id="n-http">0</span></button>
+    <button class="chip on" data-kind="ws">WS <span class="n" id="n-ws">0</span></button>
+    <button class="chip on" data-kind="log">Logs <span class="n" id="n-log">0</span></button>
+    <button class="chip err" id="errOnly">Errors <span class="n" id="n-err">0</span></button>
+  </div>
+  <button class="btn" id="pause" title="Pause the live list (space)">Pause</button>
+  <button class="btn" id="clear" title="Clear everything">Clear</button>
+  <button class="icon-btn" id="theme" title="Toggle theme">◐</button>
+</header>
+<main>
+  <section id="listWrap">
+    <div class="cols thead">
+      <span class="h-time">Time</span><span>Method</span><span>Status</span><span>Path</span><span class="h-type">Type</span><span class="r h-size">Size</span><span class="r">Duration</span>
+    </div>
+    <div id="list"></div>
+    <div class="foot"><span id="stats"></span><span class="tail on" id="tail" title="Keep the newest items in view">● following</span></div>
+  </section>
+  <div id="gutter"></div>
+  <aside id="detail"></aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const S = {
+  config: null,
+  items: new Map(),      // id -> summary / log
+  rows: new Map(),       // id -> row element
+  selected: null,
+  detail: null,
+  tab: 'response',
+  show: { http: true, ws: true, log: true },
+  errorsOnly: false,
+  filter: null,
+  paused: false,
+  missed: 0,
+  follow: true,
+  openMsgs: new Set(),
+};
+
+// ---------------------------------------------------------------- formatting
+
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+const fmtTime = (ts) => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`; };
+const fmtBytes = (n) => n == null ? '' : n === 0 ? '0 B' : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} kB` : `${(n / 1048576).toFixed(2)} MB`;
+const fmtMs = (ms) => ms == null ? '' : ms < 1 ? '<1 ms' : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+const statusClass = (s) => s ? `s${String(s)[0]}` : 'serr';
+const isError = (it) => it.kind === 'log' ? logLevel(it) === 'error' : (it.error || it.status >= 400 || it.state === 'error');
+
+function splitUrl(url) {
+  const i = url.indexOf('?');
+  return i === -1 ? [url, ''] : [url.slice(0, i), url.slice(i)];
+}
+
+// ---------------------------------------------------------------- ANSI → HTML
+
+function ansi(s) {
+  let out = '', open = false, st = {}, last = 0, m;
+  const re = /\x1b\[([\d;]*)m|\x1b\[[\d;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g;
+  while ((m = re.exec(s))) {
+    out += esc(s.slice(last, m.index));
+    last = re.lastIndex;
+    if (m[1] === undefined) continue;
+    const codes = m[1] === '' ? [0] : m[1].split(';').map(Number);
+    for (let i = 0; i < codes.length; i++) {
+      const c = codes[i];
+      if (c === 0) st = {};
+      else if (c === 1) st.b = 1;
+      else if (c === 2) st.d = 1;
+      else if (c === 3) st.i = 1;
+      else if (c === 4) st.u = 1;
+      else if (c === 22) { delete st.b; delete st.d; }
+      else if (c === 39) delete st.fg;
+      else if ((c >= 30 && c <= 37) || (c >= 90 && c <= 97)) st.fg = `var(--a${c})`;
+      else if (c === 38 || c === 48) {
+        const fg = c === 38;
+        let color = null;
+        if (codes[i + 1] === 5) { color = xterm(codes[i + 2]); i += 2; }
+        else if (codes[i + 1] === 2) { color = `rgb(${codes[i + 2]},${codes[i + 3]},${codes[i + 4]})`; i += 4; }
+        if (fg && color) st.fg = color;
+      }
+    }
+    if (open) { out += '</span>'; open = false; }
+    const css = [st.fg && `color:${st.fg}`, st.b && 'font-weight:600', st.d && 'opacity:.65', st.i && 'font-style:italic', st.u && 'text-decoration:underline'].filter(Boolean).join(';');
+    if (css) { out += `<span style="${css}">`; open = true; }
+  }
+  out += esc(s.slice(last));
+  if (open) out += '</span>';
+  return out;
+}
+function xterm(n) {
+  if (n < 8) return `var(--a${30 + n})`;
+  if (n < 16) return `var(--a${82 + n})`;
+  if (n < 232) { n -= 16; const v = (x) => (x ? x * 40 + 55 : 0); return `rgb(${v(Math.floor(n / 36))},${v(Math.floor(n / 6) % 6)},${v(n % 6)})`; }
+  const g = (n - 232) * 10 + 8; return `rgb(${g},${g},${g})`;
+}
+const stripAnsi = (s) => s.replace(/\x1b\[[\d;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
+
+// ---------------------------------------------------------------- logs
+
+function parsedLog(it) {
+  if (it._parsed !== undefined) return it._parsed;
+  const t = stripAnsi(it.text).trim();
+  it._parsed = null;
+  if (t.startsWith('{') && t.endsWith('}')) { try { it._parsed = JSON.parse(t); } catch {} }
+  return it._parsed;
+}
+const PINO = { 10: 'trace', 20: 'debug', 30: 'info', 40: 'warn', 50: 'error', 60: 'fatal' };
+function logLevel(it) {
+  if (it._lvl !== undefined) return it._lvl;
+  const j = parsedLog(it);
+  let lvl = null;
+  if (j) {
+    const raw = j.level ?? j.severity ?? j.lvl;
+    lvl = String(PINO[raw] || raw || '').toLowerCase() || null;
+  } else {
+    const t = stripAnsi(it.text);
+    if (/\b(error|exception|fatal|unhandled|traceback|ERR!)\b/i.test(t) || /^\s+at .+\(.+:\d+:\d+\)$/.test(t)) lvl = 'error';
+    else if (/\bwarn(ing)?\b/i.test(t)) lvl = 'warn';
+  }
+  if (lvl === 'fatal' || lvl === 'critical') lvl = 'error';
+  if (lvl === 'warning') lvl = 'warn';
+  if (!lvl && it.stream === 'stderr') lvl = null;
+  return (it._lvl = lvl);
+}
+const LVL_COLOR = { error: 'var(--red)', warn: 'var(--amber)', info: 'var(--blue)', debug: 'var(--faint)', trace: 'var(--faint)' };
+
+function logTextHtml(it) {
+  const j = parsedLog(it);
+  if (!j) return ansi(it.text);
+  const lvl = logLevel(it);
+  const msg = j.msg ?? j.message ?? '';
+  const skip = new Set(['msg', 'message', 'level', 'severity', 'lvl', 'time', 'timestamp', 'pid', 'hostname', 'v']);
+  const rest = Object.entries(j).filter(([k]) => !skip.has(k)).map(([k, v]) => `${esc(k)}=${esc(typeof v === 'string' ? v : JSON.stringify(v))}`).join('  ');
+  return `${lvl ? `<span class="lv" style="color:${LVL_COLOR[lvl] || 'var(--muted)'}">${esc(lvl.toUpperCase())}</span>` : ''}${esc(typeof msg === 'string' ? msg : JSON.stringify(msg))}${rest ? `  <span class="kv">${rest}</span>` : ''}`;
+}
+
+// ---------------------------------------------------------------- filter
+
+function parseFilter(q) {
+  const f = { words: [], not: [], status: [], method: [], is: [] };
+  for (const tok of q.trim().split(/\s+/).filter(Boolean)) {
+    const m = /^(-?)(status|s|method|m|is):(.+)$/i.exec(tok);
+    if (m) {
+      const key = { s: 'status', m: 'method' }[m[2].toLowerCase()] || m[2].toLowerCase();
+      f[key].push(m[3].toLowerCase().replace(/x/g, ''));
+    } else if (tok.startsWith('-') && tok.length > 1) f.not.push(tok.slice(1).toLowerCase());
+    else f.words.push(tok.toLowerCase());
+  }
+  return f;
+}
+function haystack(it) {
+  if (it._hay) return it._hay;
+  return (it._hay = (it.kind === 'log'
+    ? `${it.source} ${it.stream} ${stripAnsi(it.text)}`
+    : `${it.kind === 'ws' ? 'ws' : ''} ${it.method} ${decodeURIComponentSafe(it.url)} ${it.status ?? ''} ${it.type ?? ''} ${it.error ?? ''}`).toLowerCase());
+}
+function decodeURIComponentSafe(s) { try { return decodeURIComponent(s); } catch { return s; } }
+
+function visible(it) {
+  if (!S.show[it.kind]) return false;
+  if (S.errorsOnly && !isError(it)) return false;
+  const f = S.filter;
+  if (!f) return true;
+  if ((f.status.length || f.method.length) && it.kind === 'log') return false;
+  if (f.status.length && !f.status.some((p) => String(it.status ?? 'err').startsWith(p))) return false;
+  if (f.method.length && !f.method.includes(String(it.method).toLowerCase())) return false;
+  for (const k of f.is) {
+    if (k === 'error' && !isError(it)) return false;
+    if (k === 'pending' && it.state !== 'pending') return false;
+    if (['ws', 'log', 'http'].includes(k) && it.kind !== k) return false;
+  }
+  const h = haystack(it);
+  return f.words.every((w) => h.includes(w)) && !f.not.some((w) => h.includes(w));
+}
+
+// ---------------------------------------------------------------- list
+
+const list = $('#list');
+
+function rowHtml(it) {
+  const time = `<span class="time">${fmtTime(it.ts)}</span>`;
+  if (it.kind === 'log') {
+    const src = it.stream === 'system' ? 'devtap' : it.stream === 'file' ? it.source : it.stream === 'stderr' ? 'stderr' : 'stdout';
+    return `${time}<span class="src ${it.stream}" title="${esc(it.source)} · ${it.stream}">${esc(src)}</span><span class="text">${logTextHtml(it)}</span>`;
+  }
+  const [p, qs] = splitUrl(it.url);
+  const method = it.kind === 'ws' ? 'WS' : it.method;
+  const status = it.state === 'pending' && !it.status ? '<span class="spin"></span>' : esc(it.status ?? 'ERR');
+  const tags = [
+    it.kind === 'ws' && it.status === 101 ? `<span class="tag teal">${it.msgCount ?? 0} msg${it.msgCount === 1 ? '' : 's'}${it.state === 'open' ? ' · live' : ''}</span>` : '',
+    it.replay ? `<span class="tag">replay of #${it.replay}</span>` : '',
+    it.state === 'aborted' ? '<span class="tag red">aborted</span>' : '',
+    it.error && it.state === 'error' ? `<span class="tag red">${esc(it.error)}</span>` : '',
+  ].join('');
+  const durCls = it.duration > 3000 && it.kind !== 'ws' ? 'vslow' : it.duration > 1000 && it.kind !== 'ws' ? 'slow' : '';
+  const dur = it.state === 'pending' || it.state === 'open' ? (it.state === 'open' ? '<span class="muted">open</span>' : '<span class="spin"></span>') : fmtMs(it.duration);
+  return `${time}<span class="method m-${esc(method)}">${esc(method)}</span><span class="status ${statusClass(it.status)}">${status}</span>`
+    + `<span class="path" title="${esc(it.url)}">${esc(p)}<span class="qs">${esc(qs)}</span>${tags}</span>`
+    + `<span class="type">${esc(it.type ?? '')}</span><span class="size r">${it.resSize ? fmtBytes(it.resSize) : ''}</span><span class="dur r ${durCls}">${dur}</span>`;
+}
+
+function makeRow(it) {
+  const el = document.createElement('div');
+  el.className = `row cols ${it.kind}`;
+  if (it.kind === 'log') { const l = logLevel(it); if (l) el.classList.add(`lvl-${l}`); }
+  el.dataset.id = it.id;
+  el.innerHTML = rowHtml(it);
+  if (it.id === S.selected) el.classList.add('sel');
+  S.rows.set(it.id, el);
+  return el;
+}
+
+function nearBottom() { return list.scrollHeight - list.scrollTop - list.clientHeight < 60; }
+function scrollToEnd() { if (S.follow) list.scrollTop = list.scrollHeight; }
+
+function renderList() {
+  S.rows.clear();
+  const frag = document.createDocumentFragment();
+  for (const it of S.items.values()) if (visible(it)) frag.appendChild(makeRow(it));
+  list.replaceChildren(frag);
+  if (!list.children.length) list.innerHTML = emptyHtml();
+  scrollToEnd();
+  updateCounts();
+}
+
+function emptyHtml() {
+  if (S.items.size) return '<div class="empty"><h2>Nothing matches</h2>Adjust the filter or toggles above.</div>';
+  const proxy = S.config?.proxy ?? 'http://localhost:3689';
+  return `<div class="empty"><h2>Waiting for traffic</h2>Point your browser or client at <code>${esc(proxy)}</code> instead of <code>${esc(S.config?.target ?? '')}</code>.
+    <br><pre>curl ${esc(proxy)}/</pre></div>`;
+}
+
+function appendItem(it) {
+  if (S.paused) { S.missed++; updatePause(); return; }
+  if (!visible(it)) return;
+  const stick = nearBottom();
+  if (list.querySelector('.empty')) list.innerHTML = '';
+  list.appendChild(makeRow(it));
+  if (stick && S.follow) list.scrollTop = list.scrollHeight;
+}
+
+function updateItem(it) {
+  const el = S.rows.get(it.id);
+  if (el) {
+    if (visible(it)) el.innerHTML = rowHtml(it);
+    else { el.remove(); S.rows.delete(it.id); }
+  }
+}
+
+function updateCounts() {
+  let http = 0, ws = 0, log = 0, err = 0;
+  for (const it of S.items.values()) {
+    if (it.kind === 'http') http++; else if (it.kind === 'ws') ws++; else log++;
+    if (isError(it)) err++;
+  }
+  $('#n-http').textContent = http; $('#n-ws').textContent = ws; $('#n-log').textContent = log; $('#n-err').textContent = err;
+  const shown = S.rows.size;
+  $('#stats').textContent = `${shown} shown · ${S.items.size} captured`;
+}
+let countsQueued = false;
+function queueCounts() { if (!countsQueued) { countsQueued = true; requestAnimationFrame(() => { countsQueued = false; updateCounts(); }); } }
+
+list.addEventListener('click', (ev) => {
+  const row = ev.target.closest('.row');
+  if (row) select(Number(row.dataset.id));
+});
+list.addEventListener('scroll', () => {
+  const b = nearBottom();
+  if (b !== S.follow) { S.follow = b; $('#tail').classList.toggle('on', b); $('#tail').textContent = b ? '● following' : '↓ jump to latest'; }
+});
+$('#tail').onclick = () => { S.follow = true; list.scrollTop = list.scrollHeight; };
+
+// ---------------------------------------------------------------- live feed
+
+let es;
+function connect() {
+  es = new EventSource('/api/events');
+  es.addEventListener('init', (ev) => {
+    const { config, items } = JSON.parse(ev.data);
+    S.config = config;
+    $('#route').title = config.logSources?.length ? `Logs from:\n${config.logSources.join('\n')}` : 'No log source';
+    $('#route').innerHTML = `<b>${esc(config.proxy.replace(/^https?:\/\//, ''))}</b> → ${esc(config.target.replace(/^https?:\/\//, ''))}${config.command ? ` · <span title="${esc(config.command)}">${esc(config.command.length > 28 ? config.command.slice(0, 27) + '…' : config.command)}</span>` : ''}`;
+    S.items = new Map(items.map((it) => [it.id, it]));
+    $('#live').classList.add('live');
+    renderList();
+    if (S.selected && S.items.has(S.selected)) loadDetail(S.selected); else if (S.selected) deselect();
+  });
+  es.addEventListener('add', (ev) => {
+    const it = JSON.parse(ev.data);
+    S.items.set(it.id, it);
+    appendItem(it);
+    queueCounts();
+  });
+  es.addEventListener('update', (ev) => {
+    const it = JSON.parse(ev.data);
+    if (!S.items.has(it.id)) return;
+    S.items.set(it.id, it);
+    updateItem(it);
+    queueCounts();
+    if (it.id === S.selected) refreshDetailSoon();
+  });
+  es.addEventListener('ws', (ev) => {
+    const { id, msg } = JSON.parse(ev.data);
+    if (id === S.selected && S.detail?.messages) {
+      S.detail.messages.push(msg);
+      if (S.tab === 'messages') appendMessage(msg, S.detail.messages.length - 1);
+      const n = $('#tab-n-messages'); if (n) n.textContent = S.detail.messages.length;
+    }
+  });
+  es.addEventListener('clear', () => { S.items.clear(); deselect(); renderList(); });
+  es.onerror = () => $('#live').classList.remove('live');
+}
+
+// ---------------------------------------------------------------- detail
+
+const detailEl = $('#detail');
+
+function select(id) {
+  if (S.selected === id) return;
+  S.rows.get(S.selected)?.classList.remove('sel');
+  S.selected = id;
+  const row = S.rows.get(id);
+  row?.classList.add('sel');
+  row?.scrollIntoView({ block: 'nearest' });
+  document.body.classList.remove('no-sel');
+  S.openMsgs.clear();
+  loadDetail(id);
+}
+function deselect() {
+  S.rows.get(S.selected)?.classList.remove('sel');
+  S.selected = null; S.detail = null;
+  document.body.classList.add('no-sel');
+}
+
+async function loadDetail(id) {
+  const it = S.items.get(id);
+  if (it?.kind === 'log') { S.detail = it; renderLogDetail(it); return; }
+  try {
+    const r = await fetch(`/api/entry/${id}`);
+    const d = await r.json();
+    if (S.selected !== id) return;
+    if (!r.ok) { detailEl.innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    S.detail = d;
+    renderDetail(d);
+  } catch (err) {
+    detailEl.innerHTML = `<div class="empty">Couldn't load: ${esc(err.message)}</div>`;
+  }
+}
+let refreshTimer = null;
+function refreshDetailSoon() {
+  if (refreshTimer) return;
+  refreshTimer = setTimeout(() => { refreshTimer = null; if (S.selected && S.detail?.kind !== 'log') loadDetail(S.selected); }, 300);
+}
+
+function closeBtn() { return '<button class="btn back" data-act="close">← Back</button><button class="icon-btn" data-act="close" title="Close (Esc)">✕</button>'; }
+
+function renderLogDetail(it) {
+  const j = parsedLog(it);
+  const near = [...S.items.values()].filter((x) => x.kind !== 'log' && x.ts <= it.ts && x.ts + (x.duration ?? 1e9) >= it.ts - 50);
+  detailEl.innerHTML = `
+    <div class="d-head">
+      <div class="d-title"><span class="pill">${esc(it.stream === 'system' ? 'devtap' : it.stream)}</span><span class="muted">${esc(it.source)}</span><span class="grow"></span>${closeBtn()}</div>
+      <div class="facts"><span>Time <b>${fmtTime(it.ts)}</b></span><span>${new Date(it.ts).toLocaleDateString()}</span></div>
+      <div class="d-actions"><button class="btn" data-act="copy-log">Copy line</button></div>
+    </div>
+    <div class="d-body">
+      <div class="section"><div class="sh">Line</div><pre class="code">${ansi(it.text)}</pre></div>
+      ${j ? `<div class="section"><div class="sh">Parsed JSON</div><div class="code jt">${jsonTree(j)}</div></div>` : ''}
+      ${near.length ? `<div class="section"><div class="sh">Requests in flight at this moment</div>${near.map((x) => `<div class="logline" style="cursor:pointer" data-goto="${x.id}"><span class="method m-${esc(x.kind === 'ws' ? 'WS' : x.method)}">${esc(x.kind === 'ws' ? 'WS' : x.method)}</span> <span class="status ${statusClass(x.status)}">${esc(x.status ?? '…')}</span> ${esc(x.url)}</div>`).join('')}</div>` : ''}
+    </div>`;
+}
+
+function renderDetail(d) {
+  const tabs = d.kind === 'ws' ? ['messages', 'request', 'response', 'logs'] : ['response', 'request', 'logs'];
+  if (S.tabKind !== d.kind) { S.tab = S.tabFor?.[d.kind] ?? tabs[0]; S.tabKind = d.kind; }
+  const origin = S.config?.proxy ?? '';
+  const st = d.status;
+  const total = d.duration ?? null;
+  const wait = d.ttfb ?? null;
+  const resBody = d.res?.body;
+  const sizeNote = resBody && resBody.encoding && resBody.decodedSize !== resBody.size ? ` <span class="muted">(${esc(resBody.encoding)}, ${fmtBytes(resBody.decodedSize)} decoded)</span>` : '';
+  const logsN = logsDuring(d).length;
+  const label = { response: 'Response', request: 'Request', messages: 'Messages', logs: 'Logs' };
+  const count = { messages: d.messages?.length, logs: logsN };
+
+  detailEl.innerHTML = `
+    <div class="d-head">
+      <div class="d-title">
+        <span class="method m-${esc(d.kind === 'ws' ? 'WS' : d.method)}">${esc(d.kind === 'ws' ? 'WebSocket' : d.method)}</span>
+        <span class="pill ${statusClass(st)}">${st ? `${st} ${esc(d.res?.statusText ?? '')}` : d.state === 'pending' ? 'pending…' : 'no response'}</span>
+        <span class="muted">#${d.id}</span>
+        <span class="grow"></span>${closeBtn()}
+      </div>
+      <div class="d-url"><span class="origin">${esc(origin)}</span>${esc(d.url)}</div>
+      ${d.error ? `<div class="d-err">${esc(d.error)}</div>` : ''}
+      <div class="facts">
+        <span>Started <b>${fmtTime(d.ts)}</b></span>
+        ${d.kind === 'ws' ? `<span>${d.state === 'open' ? 'Open for' : 'Lasted'} <b>${d.state === 'open' ? fmtMs(Date.now() - d.ts) : fmtMs(total)}</b></span>` : `<span>Duration <b>${total == null ? '…' : fmtMs(total)}</b></span>`}
+        ${wait != null && d.kind !== 'ws' ? `<span>Waiting (TTFB) <b>${fmtMs(wait)}</b></span>` : ''}
+        <span>Sent <b>${fmtBytes(d.reqSize)}</b></span>
+        <span>Received <b>${fmtBytes(d.resSize)}</b>${sizeNote}</span>
+        ${d.res?.headers?.['content-type'] ? `<span>Type <b>${esc(d.res.headers['content-type'].split(';')[0])}</b></span>` : ''}
+      </div>
+      ${d.kind !== 'ws' && total && wait != null ? `<div class="timing" title="waiting ${fmtMs(wait)} · download ${fmtMs(total - wait)}"><div class="wait" style="width:${Math.max(2, (wait / total) * 100)}%"></div><div class="dl" style="flex:1"></div></div>` : ''}
+      <div class="d-actions">
+        ${d.kind === 'http' ? '<button class="btn" data-act="curl">Copy as cURL</button><button class="btn" data-act="copy-res">Copy response</button><button class="btn primary" data-act="replay">↻ Replay</button>' : ''}
+        <button class="btn" data-act="copy-json">Copy as JSON</button>
+      </div>
+    </div>
+    <div class="tabs">${tabs.map((t) => `<button class="tab ${t === S.tab ? 'on' : ''}" data-tab="${t}">${label[t]}${count[t] != null ? `<span class="n" id="tab-n-${t}">${count[t]}</span>` : ''}</button>`).join('')}</div>
+    <div class="d-body" id="dbody"></div>`;
+  renderTab();
+}
+
+function renderTab() {
+  const d = S.detail, body = $('#dbody');
+  if (!d || !body) return;
+  const keepScroll = body.scrollTop;
+  if (S.tab === 'request') body.innerHTML = requestHtml(d);
+  else if (S.tab === 'response') body.innerHTML = responseHtml(d);
+  else if (S.tab === 'messages') { body.innerHTML = messagesShell(d); d.messages.forEach((m, i) => appendMessage(m, i, true)); }
+  else if (S.tab === 'logs') body.innerHTML = logsHtml(d);
+  body.scrollTop = keepScroll;
+}
+
+function section(title, inner, n, closed) {
+  return `<div class="section ${closed ? 'closed' : ''}"><div class="sh" data-act="fold"><span class="caret">▾</span>${esc(title)}${n != null ? `<span class="n">(${n})</span>` : ''}<span class="sp"></span></div><div class="sb">${inner}</div></div>`;
+}
+
+function kvTable(pairs) {
+  if (!pairs.length) return '<div class="none">none</div>';
+  return `<div class="kv-table">${pairs.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${v}</div>`).join('')}</div>`;
+}
+
+function headerPairs(h) {
+  const out = [];
+  for (const [k, v] of Object.entries(h || {})) for (const x of Array.isArray(v) ? v : [v]) out.push([k, esc(x)]);
+  return out;
+}
+
+function cookiePairs(h) {
+  const c = h?.cookie;
+  if (!c) return [];
+  return c.split(/;\s*/).filter(Boolean).map((p) => { const i = p.indexOf('='); return [p.slice(0, i), esc(decodeURIComponentSafe(p.slice(i + 1)))]; });
+}
+
+function requestHtml(d) {
+  const [, qs] = splitUrl(d.url);
+  const params = [...new URLSearchParams(qs)].map(([k, v]) => [k, esc(v)]);
+  const cookies = cookiePairs(d.req.headers);
+  let html = '';
+  if (params.length) html += section('Query parameters', kvTable(params), params.length);
+  html += section('Body', bodyHtml(d.req.body, 'req'), d.req.body ? fmtBytes(d.req.body.size) : null);
+  html += section('Headers', kvTable(headerPairs(d.req.headers)), Object.keys(d.req.headers).length);
+  if (cookies.length) html += section('Cookies', kvTable(cookies), cookies.length, true);
+  return html;
+}
+
+function responseHtml(d) {
+  if (!d.res) return d.state === 'pending' ? '<div class="empty"><span class="spin"></span> Waiting for the server to respond…</div>' : `<div class="empty">No response${d.error ? `: ${esc(d.error)}` : ''}.</div>`;
+  const setCookies = d.res.headers['set-cookie'];
+  let html = '';
+  if (d.kind === 'ws' && d.res.status === 101) html += '<div class="note" style="color:var(--muted)">Connection upgraded to WebSocket. See the Messages tab.</div>';
+  else html += section('Body', bodyHtml(d.res.body, 'res', d.state === 'pending'), d.res.body ? fmtBytes(d.res.body.size) : null);
+  html += section('Headers', kvTable(headerPairs(d.res.headers)), Object.keys(d.res.headers).length);
+  if (setCookies) html += section('Set-Cookie', kvTable((Array.isArray(setCookies) ? setCookies : [setCookies]).map((c) => { const [kv, ...attrs] = c.split(/;\s*/); const i = kv.indexOf('='); return [kv.slice(0, i), `${esc(kv.slice(i + 1))} <span class="sub">${esc(attrs.join('; '))}</span>`]; })), null, true);
+  return html;
+}
+
+// ---------------------------------------------------------------- body viewer
+
+const viewPref = {}; // body key -> chosen mode
+
+function bodyKind(b) {
+  const ct = (b.contentType || '').toLowerCase();
+  if (b.text != null) {
+    if ((ct.includes('json') || /^\s*[\[{]/.test(b.text)) && tryJson(b.text) !== undefined) return 'json';
+    if (ct.includes('x-www-form-urlencoded')) return 'form';
+    if (ct.includes('ndjson') || ct.includes('event-stream')) return 'stream';
+    if (ct.includes('html')) return 'html';
+    if (ct.includes('svg')) return 'svg';
+    return 'text';
+  }
+  if (ct.startsWith('image/')) return 'image';
+  return 'binary';
+}
+function tryJson(s) {
+  try { return JSON.parse(s); } catch { return undefined; }
+}
+
+function bodyHtml(b, key, streaming) {
+  if (!b) return `<div class="none">${streaming ? 'streaming…' : 'no body'}</div>`;
+  const kind = bodyKind(b);
+  const modes = { json: ['tree', 'raw'], form: ['table', 'raw'], html: ['raw', 'preview'], svg: ['preview', 'raw'], image: ['preview', 'hex'], binary: ['hex'], text: ['raw'], stream: ['events', 'raw'] }[kind];
+  const mode = modes.includes(viewPref[`${key}:${kind}`]) ? viewPref[`${key}:${kind}`] : modes[0];
+  const notes = [
+    b.truncated ? `<div class="note">Showing the first ${fmtBytes(b.decodedSize)} of ${fmtBytes(b.size)} (raise --max-body to keep more).</div>` : '',
+    b.decodeError ? `<div class="note">${esc(b.decodeError)}</div>` : '',
+  ].join('');
+  const bar = `<div class="bodybar">${modes.length > 1 ? `<span class="seg">${modes.map((m) => `<button class="${m === mode ? 'on' : ''}" data-view="${key}:${kind}:${m}">${m}</button>`).join('')}</span>` : ''}
+    <span>${esc(b.contentType || kind)}</span><span class="sp"></span>${b.text != null ? `<button class="icon-btn" data-act="copy-body" data-key="${key}">Copy</button>` : ''}</div>`;
+  let inner;
+  if (mode === 'tree') {
+    const v = tryJson(b.text);
+    inner = b.text.length > 400_000 ? `<pre class="code">${highlightJson(JSON.stringify(v, null, 2))}</pre>` : `<div class="code jt">${jsonTree(v)}</div>`;
+  } else if (mode === 'raw') {
+    const v = kind === 'json' ? tryJson(b.text) : undefined;
+    inner = `<pre class="code">${v !== undefined && b.text.length < 2_000_000 ? highlightJson(JSON.stringify(v, null, 2)) : esc(b.text)}</pre>`;
+  } else if (mode === 'table') {
+    inner = kvTable([...new URLSearchParams(b.text)].map(([k, v]) => [k, esc(v)]));
+  } else if (mode === 'events') {
+    inner = streamHtml(b.text, (b.contentType || '').includes('event-stream'));
+  } else if (mode === 'preview') {
+    if (kind === 'html') inner = `<iframe class="preview" sandbox srcdoc="${esc(b.text)}"></iframe>`;
+    else if (kind === 'svg') inner = `<img class="preview" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(b.text)}">`;
+    else inner = `<img class="preview" src="data:${esc(b.contentType)};base64,${b.base64}">`;
+  } else {
+    inner = `<pre class="code">${hexdump(b.base64)}</pre>`;
+  }
+  return notes + bar + inner;
+}
+
+function streamHtml(text, sse) {
+  const chunks = sse ? text.split(/\n\n+/).filter((c) => c.trim()) : text.split('\n').filter((c) => c.trim());
+  return chunks.map((c) => {
+    let data = c;
+    let meta = '';
+    if (sse) {
+      const lines = c.split('\n');
+      const ev = lines.find((l) => l.startsWith('event:'));
+      data = lines.filter((l) => l.startsWith('data:')).map((l) => l.slice(5).replace(/^ /, '')).join('\n');
+      meta = ev ? `<span class="tag teal" style="margin:0 0 4px">${esc(ev.slice(6).trim())}</span>` : '';
+      if (!data && !ev) return `<pre class="code" style="margin-bottom:6px;color:var(--faint)">${esc(c)}</pre>`;
+    }
+    const v = tryJson(data);
+    return `<div style="margin-bottom:6px">${meta}<pre class="code">${v !== undefined && typeof v === 'object' ? highlightJson(JSON.stringify(v, null, 2)) : esc(data)}</pre></div>`;
+  }).join('') || '<div class="none">empty</div>';
+}
+
+function highlightJson(s) {
+  return esc(s).replace(/(&quot;(?:\\.|(?!&quot;).)*&quot;)(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (m, str, colon, bool) => {
+    if (str) return colon ? `<span class="jt"><span class="k">${str}</span></span>${colon}` : `<span class="jt"><span class="s">${str}</span></span>`;
+    if (bool) return `<span class="jt"><span class="b">${m}</span></span>`;
+    if (m === 'null') return `<span class="jt"><span class="nl">${m}</span></span>`;
+    return `<span class="jt"><span class="num">${m}</span></span>`;
+  });
+}
+
+function jsonTree(v) {
+  const prim = (x) => {
+    if (x === null) return '<span class="nl">null</span>';
+    if (typeof x === 'string') return `<span class="s">"${esc(x)}"</span>`;
+    if (typeof x === 'number') return `<span class="num">${x}</span>`;
+    if (typeof x === 'boolean') return `<span class="b">${x}</span>`;
+    return esc(String(x));
+  };
+  const node = (x, key, depth, last) => {
+    const k = key === undefined ? '' : typeof key === 'number' ? '' : `<span class="k">"${esc(key)}"</span><span class="p">: </span>`;
+    const comma = last ? '' : '<span class="p">,</span>';
+    if (x === null || typeof x !== 'object') return `<div class="line">${k}${prim(x)}${comma}</div>`;
+    const arr = Array.isArray(x);
+    const entries = arr ? x.map((v, i) => [i, v]) : Object.entries(x);
+    const [o, c] = arr ? ['[', ']'] : ['{', '}'];
+    if (!entries.length) return `<div class="line">${k}<span class="p">${o}${c}</span>${comma}</div>`;
+    const closed = depth >= 4 || (depth >= 1 && entries.length > 200);
+    const sum = arr ? `${entries.length} item${entries.length === 1 ? '' : 's'}` : `${entries.length} key${entries.length === 1 ? '' : 's'}`;
+    const kids = entries.map(([kk, vv], i) => node(vv, kk, depth + 1, i === entries.length - 1)).join('');
+    return `<div class="jn ${closed ? 'closed' : ''}"><span class="tg"></span>${k}<span class="p">${o}</span><span class="sum"> ${sum} </span><span class="p sumc"></span><div class="jc">${kids}</div><span class="p">${c}</span>${comma}</div>`;
+  };
+  return node(v, undefined, 0, true);
+}
+
+function hexdump(b64) {
+  const bin = atob(b64);
+  const n = Math.min(bin.length, 4096);
+  let out = '';
+  for (let i = 0; i < n; i += 16) {
+    let hex = '', asc = '';
+    for (let j = 0; j < 16; j++) {
+      if (i + j < n) {
+        const c = bin.charCodeAt(i + j);
+        hex += c.toString(16).padStart(2, '0') + ' ';
+        asc += c >= 32 && c < 127 ? bin[i + j] : '.';
+      } else hex += '   ';
+      if (j === 7) hex += ' ';
+    }
+    out += `<span style="color:var(--faint)">${i.toString(16).padStart(8, '0')}</span>  ${hex} <span style="color:var(--muted)">${esc(asc)}</span>\n`;
+  }
+  if (bin.length > n) out += `\n… ${fmtBytes(bin.length - n)} more`;
+  return out;
+}
+
+// ---------------------------------------------------------------- WS messages
+
+function messagesShell(d) {
+  if (d.res?.status !== 101) return '<div class="empty">The upgrade was not accepted, so no messages were exchanged.</div>';
+  return `<div class="bodybar" style="margin-top:12px"><span><span style="color:var(--green)">↑</span> sent by client · <span style="color:var(--blue)">↓</span> received from server</span><span class="sp"></span><span>${d.state === 'open' ? '<span class="spin"></span> live' : 'closed'}</span></div>
+    <div class="msgs" id="msgs">${d.messages.length ? '' : '<div class="none" style="padding:10px">No messages yet</div>'}</div>`;
+}
+
+function appendMessage(m, i, initial) {
+  const box = $('#msgs');
+  if (!box) return;
+  box.querySelector('.none')?.remove();
+  const el = document.createElement('div');
+  const ctl = !['text', 'binary'].includes(m.type);
+  el.className = `msg ${ctl ? 'ctl' : ''} ${S.openMsgs.has(i) ? 'open' : ''}`;
+  el.dataset.i = i;
+  const preview = m.text != null ? m.text.replace(/\s+/g, ' ').slice(0, 300) : `‹${m.type} ${fmtBytes(m.size)}›`;
+  const t0 = S.detail.ts;
+  el.innerHTML = `<div class="msg-h"><span class="arrow ${m.dir}">${m.dir === 'out' ? '↑' : '↓'}</span><span class="time" title="${fmtTime(m.ts)}">+${fmtMs(m.ts - t0)}</span><span class="ty">${esc(m.type)}${m.code ? ` ${m.code}` : ''}</span><span class="size">${fmtBytes(m.size)}</span><span class="prev">${esc(preview)}</span></div><div class="msg-b"></div>`;
+  if (S.openMsgs.has(i)) fillMessage(el, m);
+  const stick = box.parentElement.scrollHeight - box.parentElement.scrollTop - box.parentElement.clientHeight < 60;
+  box.appendChild(el);
+  if (!initial && stick) box.parentElement.scrollTop = box.parentElement.scrollHeight;
+}
+function fillMessage(el, m) {
+  const b = el.querySelector('.msg-b');
+  if (b.dataset.filled) return;
+  b.dataset.filled = 1;
+  if (m.text != null) {
+    const v = tryJson(m.text);
+    b.innerHTML = v !== undefined && typeof v === 'object' ? `<div class="code jt">${jsonTree(v)}</div>` : `<pre class="code">${esc(m.text) || '<span class="none">empty</span>'}</pre>`;
+  } else b.innerHTML = `<pre class="code">${hexdump(m.base64 || '')}</pre>`;
+  if (m.truncated) b.insertAdjacentHTML('afterbegin', '<div class="note">Truncated.</div>');
+}
+
+// ---------------------------------------------------------------- logs during request
+
+function logsDuring(d) {
+  const end = d.duration != null ? d.ts + d.duration + 15 : Infinity;
+  return [...S.items.values()].filter((x) => x.kind === 'log' && x.ts >= d.ts - 5 && x.ts <= end);
+}
+function logsHtml(d) {
+  const logs = logsDuring(d);
+  if (!logs.length) return `<div class="empty">No log lines while this ${d.kind === 'ws' ? 'connection was open' : 'request was in flight'}.${S.config?.logSources?.length ? '' : `<br><br>devtap isn't reading any logs yet. Restart it with one of:<pre>devtap ${esc((S.config?.target || '').replace(/^.*:/, ''))} --attach          # running server, no restart\ndevtap ${esc((S.config?.target || '').replace(/^.*:/, ''))} -l app.log        # a log file\ndevtap ${esc((S.config?.target || '').replace(/^.*:/, ''))} --docker NAME     # a container\ndevtap ${esc((S.config?.target || '').replace(/^.*:/, ''))} -- go run .       # start the server through devtap</pre>`}</div>`;
+  return `<div class="note" style="color:var(--muted);margin-top:12px">Lines printed between the start and end of this ${d.kind === 'ws' ? 'connection' : 'request'}. Concurrent requests may also appear here.</div>`
+    + logs.map((l) => `<div class="logline"><span class="time">${fmtTime(l.ts)}</span>${l.stream === 'stderr' ? '<span class="tag red" style="margin:0 8px 0 0">stderr</span>' : ''}${logTextHtml(l)}</div>`).join('');
+}
+
+// ---------------------------------------------------------------- actions
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.classList.remove('show'), 1400);
+}
+async function copy(text, what = 'Copied') {
+  try { await navigator.clipboard.writeText(text); toast(what); }
+  catch { toast('Clipboard unavailable'); }
+}
+const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+function curl(d) {
+  const parts = [`curl -X ${d.method} ${sq((S.config?.proxy ?? '') + d.url)}`];
+  for (const [k, v] of Object.entries(d.req.headers)) {
+    if (['host', 'content-length', 'connection', 'accept-encoding', 'x-devtap-replay'].includes(k)) continue;
+    for (const x of Array.isArray(v) ? v : [v]) parts.push(`-H ${sq(`${k}: ${x}`)}`);
+  }
+  if (d.req.body?.text != null) parts.push(`--data-raw ${sq(d.req.body.text)}`);
+  return parts.join(' \\\n  ');
+}
+
+detailEl.addEventListener('click', async (ev) => {
+  const t = ev.target;
+  const tab = t.closest('[data-tab]');
+  if (tab) { S.tab = tab.dataset.tab; (S.tabFor ??= {})[S.detail.kind] = S.tab; detailEl.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === tab)); $('#dbody').scrollTop = 0; renderTab(); return; }
+  const view = t.closest('[data-view]');
+  if (view) { const [key, kind, mode] = view.dataset.view.split(':'); viewPref[`${key}:${kind}`] = mode; renderTab(); return; }
+  if (t.classList.contains('tg') || t.classList.contains('sum')) { t.parentElement.classList.toggle('closed'); return; }
+  const msgH = t.closest('.msg-h');
+  if (msgH) {
+    const el = msgH.parentElement, i = Number(el.dataset.i);
+    el.classList.toggle('open');
+    if (el.classList.contains('open')) { S.openMsgs.add(i); fillMessage(el, S.detail.messages[i]); } else S.openMsgs.delete(i);
+    return;
+  }
+  const goto = t.closest('[data-goto]');
+  if (goto) { select(Number(goto.dataset.goto)); return; }
+  const act = t.closest('[data-act]')?.dataset.act;
+  const d = S.detail;
+  if (!act) return;
+  if (act === 'fold') t.closest('.section').classList.toggle('closed');
+  else if (act === 'close') deselect();
+  else if (act === 'curl') copy(curl(d), 'cURL command copied');
+  else if (act === 'copy-res') copy(d.res?.body?.text ?? '', 'Response body copied');
+  else if (act === 'copy-json') copy(JSON.stringify(d, null, 2), 'Copied as JSON');
+  else if (act === 'copy-log') copy(stripAnsi(d.text), 'Line copied');
+  else if (act === 'copy-body') {
+    const b = t.closest('[data-key]').dataset.key === 'req' ? d.req.body : d.res.body;
+    const v = tryJson(b.text);
+    copy(v !== undefined ? JSON.stringify(v, null, 2) : b.text, 'Body copied');
+  } else if (act === 'replay') {
+    const r = await fetch(`/api/replay/${d.id}`, { method: 'POST' });
+    const j = await r.json();
+    toast(r.ok ? 'Replayed. See the newest row' : `Replay failed: ${j.error}`);
+  }
+});
+
+// ---------------------------------------------------------------- toolbar, keys, layout
+
+let filterTimer;
+$('#q').addEventListener('input', (ev) => {
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(() => {
+    const v = ev.target.value;
+    S.filter = v.trim() ? parseFilter(v) : null;
+    renderList();
+  }, 80);
+});
+document.querySelectorAll('.chip[data-kind]').forEach((c) => c.addEventListener('click', () => {
+  S.show[c.dataset.kind] = !S.show[c.dataset.kind];
+  c.classList.toggle('on', S.show[c.dataset.kind]);
+  renderList();
+}));
+$('#errOnly').onclick = () => { S.errorsOnly = !S.errorsOnly; $('#errOnly').classList.toggle('on', S.errorsOnly); renderList(); };
+
+function updatePause() {
+  $('#pause').innerHTML = S.paused ? `Resume${S.missed ? ` <span class="badge">${S.missed}</span>` : ''}` : 'Pause';
+  $('#pause').classList.toggle('primary', S.paused);
+}
+function togglePause() {
+  S.paused = !S.paused;
+  if (!S.paused) { S.missed = 0; renderList(); }
+  updatePause();
+}
+$('#pause').onclick = togglePause;
+$('#clear').onclick = () => fetch('/api/clear', { method: 'POST' });
+
+function setTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  try { localStorage.setItem('devtap-theme', t || ''); } catch {}
+}
+try {
+  const saved = localStorage.getItem('devtap-theme');
+  if (saved) setTheme(saved);
+  else if (matchMedia('(prefers-color-scheme: light)').matches) setTheme('light');
+} catch {}
+$('#theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+
+document.addEventListener('keydown', (ev) => {
+  const typing = ev.target.matches('input, textarea');
+  if (ev.key === '/' && !typing) { ev.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+  if (ev.key === 'Escape') {
+    if (typing) { ev.target.blur(); if (ev.target.value) { ev.target.value = ''; S.filter = null; renderList(); } }
+    else deselect();
+    return;
+  }
+  if (typing) return;
+  if (ev.key === ' ') { ev.preventDefault(); togglePause(); return; }
+  if (['ArrowDown', 'ArrowUp', 'j', 'k'].includes(ev.key)) {
+    ev.preventDefault();
+    const rows = [...list.children].filter((r) => r.dataset.id);
+    if (!rows.length) return;
+    const i = rows.findIndex((r) => Number(r.dataset.id) === S.selected);
+    const down = ev.key === 'ArrowDown' || ev.key === 'j';
+    const next = i === -1 ? (down ? 0 : rows.length - 1) : Math.max(0, Math.min(rows.length - 1, i + (down ? 1 : -1)));
+    select(Number(rows[next].dataset.id));
+  }
+});
+
+// resizable split
+const gutter = $('#gutter');
+try { const w = localStorage.getItem('devtap-w'); if (w) document.documentElement.style.setProperty('--detail-w', w); } catch {}
+gutter.addEventListener('pointerdown', (ev) => {
+  gutter.setPointerCapture(ev.pointerId);
+  gutter.classList.add('drag');
+  const move = (e) => {
+    const w = `${Math.max(360, Math.min(window.innerWidth - 340, window.innerWidth - e.clientX))}px`;
+    document.documentElement.style.setProperty('--detail-w', w);
+  };
+  const up = () => {
+    gutter.classList.remove('drag');
+    gutter.removeEventListener('pointermove', move);
+    try { localStorage.setItem('devtap-w', getComputedStyle(document.documentElement).getPropertyValue('--detail-w')); } catch {}
+  };
+  gutter.addEventListener('pointermove', move);
+  gutter.addEventListener('pointerup', up, { once: true });
+});
+
+connect();
+</script>
+</body>
+</html>
