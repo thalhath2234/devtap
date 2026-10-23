@@ -28,6 +28,28 @@ devtap ports            # list what's listening on this machine
 
 Then send your requests to **http://localhost:3689** instead of your server's port, and open the inspector at **http://localhost:9090** (or add `-o` to open it for you). If 3689 or 9090 is taken, devtap uses the next free port and prints it.
 
+### Keep your frontend's port
+
+If you'd rather not point your frontend at a new port, let devtap take over the port your server normally uses:
+
+```bash
+devtap 8080 --swap -- go run .
+```
+
+devtap listens on 8080 and starts your server on the next free port (8081 if free), passing the port to it in `$PORT`. Your frontend keeps calling `localhost:8080`, and everything shows up in the inspector. Nothing must be running on 8080 when you start.
+
+Your server has to read its port from the environment. In Go:
+
+```go
+port := os.Getenv("PORT")
+if port == "" {
+	port = "8080"
+}
+http.ListenAndServe(":"+port, handler)
+```
+
+If your server uses a different variable, name it with `--port-env`, e.g. `--port-env HTTP_PORT`. If the server ignores it and tries to take 8080 anyway, devtap tells you.
+
 ## Logs
 
 When you connect to a running server, devtap looks for its logs automatically:

@@ -43,6 +43,9 @@ Options
   -p, --port <n>       proxy port (default 3689, or the next free one). Send your traffic here.
   -u, --ui <n>         inspector port (default 9090, or the next free one)
   -o, --open           open the inspector in your browser
+      --swap           keep your app's port: devtap takes over <target>'s port and starts your
+                       server (after --) on a free port, passed to it as $PORT
+      --port-env <n>   with --swap: the env var your server reads its port from (default PORT)
       --host <addr>    address the proxy binds to (default 127.0.0.1; 0.0.0.0 to reach it from your phone)
       --max-body <kb>  body bytes kept per request/response (default 2048)
       --keep <n>       items kept in memory (default 5000)
@@ -56,6 +59,7 @@ Examples
   devtap 8080 --journal myapp
   docker compose logs -f api | devtap 8080
   devtap 8080 -- go run .
+  devtap 8080 --swap -- go run .     frontend keeps using :8080; the server moves to a free port
 `;
 
 // ---------------------------------------------------------------- options
@@ -86,6 +90,7 @@ function parseArgs(argv) {
   const opts = {
     port: 3689, ui: 9090, host: '127.0.0.1', cmd: null, maxBody: 2048 * 1024, keep: 5000, quiet: false,
     logs: [], docker: [], journal: [], logCmds: [], stdin: false, attach: false, pid: null, auto: true, open: false,
+    swap: false, portEnv: 'PORT',
     portSet: false, uiSet: false, subcommand: null,
   };
   const dd = argv.indexOf('--');
@@ -107,6 +112,8 @@ function parseArgs(argv) {
       case '--pid': opts.pid = num(a, next()); opts.attach = true; break;
       case '--no-auto': opts.auto = false; break;
       case '-o': case '--open': opts.open = true; break;
+      case '--swap': opts.swap = true; break;
+      case '--port-env': opts.portEnv = next(); break;
       case '--host': opts.host = next(); break;
       case '--max-body': opts.maxBody = num(a, next()) * 1024; break;
       case '--keep': opts.keep = num(a, next()); break;
@@ -119,6 +126,8 @@ function parseArgs(argv) {
     }
   }
   if (!opts.cmd?.length) opts.cmd = null;
+  if (opts.swap && !opts.cmd) die('--swap needs the command that starts your server, e.g. devtap 8080 --swap -- go run .');
+  if (opts.swap && opts.portSet) die("--swap uses the target's port for the proxy, so don't pass --port with it");
   // Logs piped in (`docker logs -f api | devtap 8080`) are picked up without --stdin.
   if (!opts.cmd && !process.stdin.isTTY) {
     try { const st = fs.fstatSync(0); if (st.isFIFO() || st.isFile()) opts.stdin = true; } catch {}
@@ -517,10 +526,13 @@ function handleUpgrade(req, socket, head) {
 
 // ---------------------------------------------------------------- logs (child process + files)
 
+const logWatchers = new Set();
+
 function addLog(source, stream, text) {
   const item = { id: ++seq, kind: 'log', ts: Date.now(), source, stream, text };
   remember(item);
   broadcast('add', item);
+  for (const watch of logWatchers) watch(item);
 }
 
 const ANSI_RE = /\x1b\[[\d;?]*[A-Za-z]/g;
@@ -559,7 +571,7 @@ function startServer() {
   const name = path.basename(cmd.split(/\s+/)[0]);
   serverProc = spawn(cmd, args, {
     stdio: ['inherit', 'pipe', 'pipe'],
-    env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR ?? '1' },
+    env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR ?? '1', ...(opts.swap && { [opts.portEnv]: String(target.port) }) },
     shell: args.length === 0 && /\s/.test(cmd),
     detached: true, // own process group, so stopping devtap also stops what `go run` / `npm run` spawned
   });
@@ -832,9 +844,56 @@ function openBrowser(url) {
   try { spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
 }
 
+function portFree(port) {
+  return new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, () => probe.close(() => resolve(true))); // all interfaces, like most servers bind
+  });
+}
+
+async function freePort(from, avoid) {
+  for (let p = from; p < from + 200; p++) if (!avoid.includes(p) && await portFree(p)) return p;
+  die(`couldn't find a free port above ${from} for your server`);
+}
+
+// --swap: tell the user quickly if their server ignored $PORT and tried to take the proxy's port.
+function watchSwap(appPort) {
+  let done = false;
+  const warn = (msg) => {
+    if (done) return;
+    done = true;
+    note(msg);
+    console.log(paint(33, `\n  ${msg}\n`));
+  };
+  const bindFailed = (item) => {
+    if (item.source !== 'devtap' && /address already in use|EADDRINUSE|bind: .*in use/i.test(item.text)) {
+      warn(`Your server couldn't bind a port. It probably ignores $${opts.portEnv} and tried to take :${appPort}, which devtap now owns. Make it read the port from $${opts.portEnv} (see README), or pass the env var it uses with --port-env.`);
+    }
+  };
+  logWatchers.add(bindFailed);
+  const started = Date.now();
+  const timer = setInterval(() => {
+    const up = discover.listeners().some((l) => l.port === target.port);
+    if (up || done) { clearInterval(timer); logWatchers.delete(bindFailed); if (up && !done) note(`your server is up on :${target.port}`); return; }
+    if (Date.now() - started > 60_000) {
+      clearInterval(timer);
+      warn(`Nothing is listening on :${target.port} after a minute. If your server doesn't read $${opts.portEnv}, it won't move there; pass the env var it uses with --port-env.`);
+    }
+  }, 1000);
+  timer.unref();
+}
+
 async function main() {
   if (opts.subcommand === 'ports') return listPorts();
   setTarget(opts.target ?? await pickTarget());
+  const appPort = target.port;
+  if (opts.swap) {
+    if (!target.local) die('--swap only works for a server on this machine');
+    opts.port = appPort;
+    opts.portSet = true;
+    if (!(await portFree(appPort))) die(`something is already running on :${appPort}. Stop it first: with --swap, devtap takes that port and starts your server on another one.`);
+  }
 
   const proxy = http.createServer(handleRequest);
   proxy.on('upgrade', handleUpgrade);
@@ -850,6 +909,11 @@ async function main() {
     logSources: [],
   };
   opts.ui = await listenAuto(ui, opts.ui, '127.0.0.1', opts.uiSet, 'ui');
+  if (opts.swap) {
+    setTarget(`localhost:${await freePort(appPort + 1, [opts.ui])}`);
+    config.target = target.href;
+    watchSwap(appPort);
+  }
   setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 15_000).unref();
 
   const owner = target.local ? discover.listeners().find((l) => l.port === target.port && l.pid) : null;
@@ -861,7 +925,7 @@ async function main() {
   console.log(`
   ${paint('1;36', 'devtap')}  ${paint(2, 'connected to')} ${target.href}${owner ? paint(2, `  (${owner.name}, pid ${owner.pid})`) : ''}
 
-  ${paint(1, 'Use your app at')}   ${paint(32, config.proxy)}   ${paint(2, `← send requests here instead of :${target.port}`)}
+  ${paint(1, 'Use your app at')}   ${paint(32, config.proxy)}   ${paint(2, opts.swap ? `← same as before; your server now runs on :${target.port} (${opts.portEnv}=${target.port})` : `← send requests here instead of :${target.port}`)}
   ${paint(1, 'Inspector')}         ${paint(36, uiUrl)}
   ${paint(1, 'Logs')}              ${logLines.length ? logLines.map((l, i) => `${i ? '                    ' : ''}${mark(l.ok)} ${l.text}`).join('\n') : paint(2, 'none (see devtap --help for -l, --docker, --journal, --attach)')}
 `);
