@@ -8,6 +8,16 @@ See every request, response, WebSocket message and log line of your local server
                                └──▶  inspector UI :9090
 ```
 
+## Install
+
+```bash
+npm install -g github:thalhath2234/devtap
+```
+
+Run the same command again to update. Needs Node 18 or newer.
+
+From a clone of this repo, install your local copy with `npm pack && npm install -g ./devtap-*.tgz`, or run it without installing: `node devtap.js 8080`. To try it on a demo server: `npm run demo`, then `./demo/traffic.sh`.
+
 ## Connect
 
 ```bash
@@ -53,14 +63,6 @@ devtap 8080 -- go run .                  # start the server through devtap
 
 UI keys: `/` filter · `↑ ↓` / `j k` move · `Space` pause · `Esc` close or clear the filter.
 Filter syntax: free text, `status:4xx`, `method:post`, `is:error`, `is:ws`, `is:log`, `is:pending`, `-healthcheck` (exclude).
-
-## Install
-
-```bash
-npm pack && npm install -g ./devtap-*.tgz
-```
-
-Or run it straight from this folder with `node devtap.js 8080`. To try it on a demo server: `npm run demo`, then `./demo/traffic.sh`.
 
 ## Notes
 
