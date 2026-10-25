@@ -93,10 +93,6 @@ devtap 8080 -- go run .                  # start the server through devtap
 
 ![The Messages tab of a WebSocket connection, with one message expanded](docs/websocket.png)
 
-**Light theme**: follows your system setting, or switch with the ◐ button.
-
-![devtap in light theme showing a decoded gzip JSON response](docs/light.png)
-
 UI keys: `/` filter · `↑ ↓` / `j k` move · `Space` pause · `Esc` close or clear the filter.
 Filter syntax: free text, `status:4xx`, `method:post`, `is:error`, `is:ws`, `is:log`, `is:pending`, `-healthcheck` (exclude).
 
