@@ -2,6 +2,8 @@
 
 See every request, response, WebSocket message and log line of your local server in one readable, live UI. No dependencies, just Node 18+.
 
+![devtap showing a timeline of requests and server logs, with a POST request's JSON response open](docs/overview.png)
+
 ```
  browser / curl / app  ──▶  devtap :3689  ──▶  your server :8080
                                │
@@ -82,6 +84,18 @@ devtap 8080 -- go run .                  # start the server through devtap
 - **WebSockets**: every frame in both directions, with JSON payloads expandable.
 - **Server logs**, interleaved with traffic in one timeline: ANSI colours are kept, JSON logs (slog, zap, zerolog, pino) are parsed, and errors and warnings are highlighted. Each request has a **Logs** tab with the lines printed while it was in flight.
 - **Actions**: copy as cURL, copy the body, replay a request, or copy the whole exchange as JSON.
+
+**Request details**: query parameters, body, headers and cookies.
+
+![The Request tab showing a JSON request body as a tree and the request headers](docs/request.png)
+
+**WebSockets**: each message with its direction and timing, and JSON payloads you can expand.
+
+![The Messages tab of a WebSocket connection, with one message expanded](docs/websocket.png)
+
+**Light theme**: follows your system setting, or switch with the ◐ button.
+
+![devtap in light theme showing a decoded gzip JSON response](docs/light.png)
 
 UI keys: `/` filter · `↑ ↓` / `j k` move · `Space` pause · `Esc` close or clear the filter.
 Filter syntax: free text, `status:4xx`, `method:post`, `is:error`, `is:ws`, `is:log`, `is:pending`, `-healthcheck` (exclude).

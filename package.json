@@ -30,7 +30,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "demo": "node devtap.js 3000 -- node demo/server.js"
+    "demo": "node devtap.js 3000 -- node demo/server.js",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "license": "MIT"
 }
